@@ -45,6 +45,8 @@ class DrawCommandBuffer
 
 	public function new()
 	{
+		copyOnWrite = COW_ALL;
+
 		if (empty == null)
 		{
 			types = [];
@@ -55,8 +57,6 @@ class DrawCommandBuffer
 			o = [];
 			ff = [];
 			ii = [];
-
-			copyOnWrite = COW_ALL;
 		}
 		else
 		{
@@ -240,6 +240,28 @@ class DrawCommandBuffer
 
 	public function clear():Void
 	{
+		#if haxe4
+		if (copyOnWrite != COW_ALL)
+		{
+			// if these arrays have already been copied, then we should be able
+			// to reuse them instead of creating new copies. this will result in
+			// fewer temporary objects that need to be garbage collected
+
+			// each array has its own flag: one that was copied is reused, one
+			// that is still shared is left to the buffers sharing it
+			if ((copyOnWrite & COW_TYPES) == 0) types.resize(0) else types = empty.types;
+
+			if ((copyOnWrite & COW_B) == 0) b.resize(0) else b = empty.b;
+			if ((copyOnWrite & COW_I) == 0) i.resize(0) else i = empty.i;
+			if ((copyOnWrite & COW_F) == 0) f.resize(0) else f = empty.f;
+			if ((copyOnWrite & COW_O) == 0) o.resize(0) else o = empty.o;
+			if ((copyOnWrite & COW_FF) == 0) ff.resize(0) else ff = empty.ff;
+			if ((copyOnWrite & COW_II) == 0) ii.resize(0) else ii = empty.ii;
+
+			return;
+		}
+		#end
+
 		types = empty.types;
 
 		b = empty.b;

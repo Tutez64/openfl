@@ -909,7 +909,7 @@ abstract Vector<T>(IVector<T>)
 		}
 	}
 
-	public function iterator():Iterator<Bool>
+	public inline function iterator():Iterator<Bool>
 	{
 		return cast __array.iterator();
 	}
@@ -1155,7 +1155,7 @@ abstract Vector<T>(IVector<T>)
 		}
 	}
 
-	public function iterator():Iterator<Float>
+	public inline function iterator():Iterator<Float>
 	{
 		return cast __array.iterator();
 	}
@@ -1406,7 +1406,7 @@ abstract Vector<T>(IVector<T>)
 		}
 	}
 
-	public function iterator():Iterator<Function>
+	public inline function iterator():Iterator<Function>
 	{
 		return cast __array.iterator();
 	}
@@ -1643,7 +1643,7 @@ abstract Vector<T>(IVector<T>)
 		}
 	}
 
-	public function iterator():Iterator<Int>
+	public inline function iterator():Iterator<Int>
 	{
 		return cast __array.iterator();
 	}
@@ -1890,7 +1890,7 @@ abstract Vector<T>(IVector<T>)
 		}
 	}
 
-	public function iterator():Iterator<T>
+	public inline function iterator():Iterator<T>
 	{
 		return cast __array.iterator();
 	}

@@ -1129,7 +1129,7 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 		softKeyboardRect = new Rectangle();
 		stageFocusRect = true;
 
-		#if mac
+		#if (mac || ios || tvos)
 		__macKeyboard = true;
 		#elseif (js && html5)
 		__macKeyboard = untyped #if haxe4 js.Syntax.code #else __js__ #end ("/AppleWebKit/.test (navigator.userAgent) && /Mobile\\/\\w+/.test (navigator.userAgent) || /Mac/.test (navigator.platform)");

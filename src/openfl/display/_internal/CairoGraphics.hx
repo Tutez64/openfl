@@ -1829,7 +1829,7 @@ class CairoGraphics
 	}
 	#end
 
-	public static function render(graphics:Graphics, renderer:CairoRenderer):Void
+	public static function render(graphics:Graphics, renderer:CairoRenderer, allowRenderSizeReuse:Bool = false):Void
 	{
 		#if lime_cairo
 		CairoGraphics.graphics = graphics;
@@ -1861,7 +1861,7 @@ class CairoGraphics
 			graphics.__bitmapScaleY = 1;
 		}
 
-		graphics.__update(renderer.__worldTransform, pixelRatio);
+		graphics.__update(renderer.__worldTransform, pixelRatio, allowRenderSizeReuse);
 
 		var width = graphics.__renderWidth;
 		var height = graphics.__renderHeight;

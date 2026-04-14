@@ -41,6 +41,7 @@ class Context3DGraphics
 	private static var tempIndicesVector:Vector<Int> = new Vector<Int>();
 	private static var tempUvtVector:Vector<Float> = new Vector<Float>();
 	private static var tempScale9VerticesVector:Vector<Float>;
+	private static var tempLinePathVertices:Vector<Float> = new Vector<Float>();
 
 	private static function buildBuffer(graphics:Graphics, renderer:OpenGLRenderer):Void
 	{
@@ -59,6 +60,10 @@ class Context3DGraphics
 
 		var bitmap:BitmapData = null;
 		var bitmapMatrix:Matrix = null;
+		var linePathVertices = tempLinePathVertices;
+		var linePathMoveCount = 0;
+		var linePathSegmentCount = 0;
+		linePathVertices.length = 0;
 
 		var scale9Grid:Rectangle = graphics.__owner.__scale9Grid;
 		// no scale9Grid for masks
@@ -170,26 +175,65 @@ class Context3DGraphics
 			}
 		}
 
+		inline function flushBitmapLinePath():Void
+		{
+			if (bitmap != null && linePathMoveCount == 1 && linePathSegmentCount == 4)
+			{
+				var numVertices = Std.int(linePathVertices.length / 2);
+				if (numVertices >= 2
+					&& linePathVertices[0] == linePathVertices[linePathVertices.length - 2]
+					&& linePathVertices[1] == linePathVertices[linePathVertices.length - 1])
+				{
+					linePathVertices.pop();
+					linePathVertices.pop();
+					numVertices--;
+				}
+
+				if (numVertices == 4)
+				{
+					tempIndicesVector.length = 6;
+					tempIndicesVector[0] = 0;
+					tempIndicesVector[1] = 1;
+					tempIndicesVector[2] = 2;
+					tempIndicesVector[3] = 0;
+					tempIndicesVector[4] = 2;
+					tempIndicesVector[5] = 3;
+
+					var uvtData = tempUvtVector;
+					populateBitmapUvtVector(linePathVertices, bitmap, bitmapMatrix, uvtData);
+					buildDrawTrianglesBuffer(linePathVertices, tempIndicesVector, uvtData, NONE);
+				}
+			}
+
+			linePathVertices.length = 0;
+			linePathMoveCount = 0;
+			linePathSegmentCount = 0;
+		}
+
 		for (type in graphics.__commands.types)
 		{
 			switch (type)
 			{
 				case BEGIN_BITMAP_FILL:
+					flushBitmapLinePath();
 					var c = data.readBeginBitmapFill();
 					bitmap = c.bitmap;
 					bitmapMatrix = c.matrix;
 
 				case BEGIN_GRADIENT_FILL:
+					flushBitmapLinePath();
 					bitmap = null;
 					bitmapMatrix = null;
 					data.skip(type);
 
 				case BEGIN_FILL:
+					flushBitmapLinePath();
 					bitmap = null;
 					bitmapMatrix = null;
 					data.skip(type);
 
 				case BEGIN_SHADER_FILL:
+					flushBitmapLinePath();
 					var c = data.readBeginShaderFill();
 					var shaderBuffer = c.shaderBuffer;
 
@@ -209,6 +253,7 @@ class Context3DGraphics
 					}
 
 				case DRAW_QUADS:
+					flushBitmapLinePath();
 					var c = data.readDrawQuads();
 					var rects = c.rects;
 					var indices = c.indices;
@@ -373,6 +418,7 @@ class Context3DGraphics
 					quadBufferPosition += length;
 
 				case DRAW_TRIANGLES:
+					flushBitmapLinePath();
 					var c = data.readDrawTriangles();
 					var vertices = c.vertices;
 					var indices = c.indices;
@@ -381,6 +427,7 @@ class Context3DGraphics
 					buildDrawTrianglesBuffer(vertices, indices, uvtData, culling);
 
 				case DRAW_CIRCLE:
+					flushBitmapLinePath();
 					var c = data.readDrawCircle();
 					var x = c.x;
 					var y = c.y;
@@ -394,6 +441,7 @@ class Context3DGraphics
 					buildDrawTrianglesBuffer(tempVerticesVector, tempIndicesVector, null, NONE);
 
 				case DRAW_ELLIPSE:
+					flushBitmapLinePath();
 					var c = data.readDrawEllipse();
 					var x = c.x;
 					var y = c.y;
@@ -407,6 +455,7 @@ class Context3DGraphics
 					buildDrawTrianglesBuffer(tempVerticesVector, tempIndicesVector, null, NONE);
 
 				case DRAW_ROUND_RECT:
+					flushBitmapLinePath();
 					var c = data.readDrawRoundRect();
 					var x = c.x;
 					var y = c.y;
@@ -427,6 +476,7 @@ class Context3DGraphics
 					buildDrawTrianglesBuffer(tempVerticesVector, tempIndicesVector, null, NONE);
 
 				case DRAW_RECT:
+					flushBitmapLinePath();
 					if (bitmap != null)
 					{
 						var c = data.readDrawRect();
@@ -451,7 +501,21 @@ class Context3DGraphics
 						buildDrawTrianglesBuffer(tempVerticesVector, tempIndicesVector, null, NONE);
 					}
 
+				case MOVE_TO:
+					var c = data.readMoveTo();
+					flushBitmapLinePath();
+					linePathVertices.push(c.x);
+					linePathVertices.push(c.y);
+					linePathMoveCount = 1;
+
+				case LINE_TO:
+					var c = data.readLineTo();
+					linePathVertices.push(c.x);
+					linePathVertices.push(c.y);
+					linePathSegmentCount++;
+
 				case END_FILL:
+					flushBitmapLinePath();
 					bitmap = null;
 					bitmapMatrix = null;
 
@@ -528,6 +592,14 @@ class Context3DGraphics
 
 		var data = new DrawCommandReader(graphics.__commands);
 		var hasColorFill = false, hasBitmapFill = false, hasShaderFill = false;
+		var linePathMoveCount = 0;
+		var linePathSegmentCount = 0;
+
+		inline function resetLinePathCompatibility():Void
+		{
+			linePathMoveCount = 0;
+			linePathSegmentCount = 0;
+		}
 
 		for (type in graphics.__commands.types)
 		{
@@ -535,23 +607,36 @@ class Context3DGraphics
 			{
 				case BEGIN_BITMAP_FILL:
 					var c = data.readBeginBitmapFill();
-					if (c.matrix != null)
+					if (c.matrix != null && (c.matrix.a * c.matrix.d - c.matrix.b * c.matrix.c) == 0)
 					{
 						data.destroy();
 						return false;
 					}
+					resetLinePathCompatibility();
 					hasBitmapFill = true;
 					hasColorFill = false;
 					hasShaderFill = false;
 					data.skip(type);
 
 				case BEGIN_FILL:
+					if (linePathMoveCount > 0 || linePathSegmentCount > 0)
+					{
+						data.destroy();
+						return false;
+					}
+					resetLinePathCompatibility();
 					hasBitmapFill = false;
 					hasColorFill = true;
 					hasShaderFill = false;
 					data.skip(type);
 
 				case BEGIN_SHADER_FILL:
+					if (linePathMoveCount > 0 || linePathSegmentCount > 0)
+					{
+						data.destroy();
+						return false;
+					}
+					resetLinePathCompatibility();
 					hasBitmapFill = false;
 					hasColorFill = false;
 					hasShaderFill = true;
@@ -570,6 +655,7 @@ class Context3DGraphics
 					}
 
 				case DRAW_QUADS:
+					resetLinePathCompatibility();
 					if (hasColorFill || hasBitmapFill || hasShaderFill)
 					{
 						data.skip(type);
@@ -581,6 +667,7 @@ class Context3DGraphics
 					}
 
 				case DRAW_CIRCLE:
+					resetLinePathCompatibility();
 					if (hasColorFill || hasBitmapFill || hasShaderFill)
 					{
 						data.skip(type);
@@ -592,6 +679,7 @@ class Context3DGraphics
 					}
 
 				case DRAW_ELLIPSE:
+					resetLinePathCompatibility();
 					if (hasColorFill || hasBitmapFill || hasShaderFill)
 					{
 						data.skip(type);
@@ -603,6 +691,7 @@ class Context3DGraphics
 					}
 
 				case DRAW_RECT:
+					resetLinePathCompatibility();
 					if (hasColorFill || hasBitmapFill || hasShaderFill)
 					{
 						data.skip(type);
@@ -614,6 +703,7 @@ class Context3DGraphics
 					}
 
 				case DRAW_ROUND_RECT:
+					resetLinePathCompatibility();
 					if (hasColorFill || hasBitmapFill || hasShaderFill)
 					{
 						data.skip(type);
@@ -625,6 +715,7 @@ class Context3DGraphics
 					}
 
 				case DRAW_TRIANGLES:
+					resetLinePathCompatibility();
 					if (hasColorFill || hasBitmapFill || hasShaderFill)
 					{
 						data.skip(type);
@@ -635,13 +726,53 @@ class Context3DGraphics
 						return false;
 					}
 
+				case MOVE_TO:
+					if (hasBitmapFill && !hasColorFill && !hasShaderFill)
+					{
+						if (linePathMoveCount > 0 || linePathSegmentCount > 0)
+						{
+							data.destroy();
+							return false;
+						}
+
+						linePathMoveCount = 1;
+						data.skip(type);
+					}
+					else
+					{
+						data.skip(type);
+					}
+
+				case LINE_TO:
+					if (hasBitmapFill && !hasColorFill && !hasShaderFill && linePathMoveCount == 1)
+					{
+						linePathSegmentCount++;
+
+						if (linePathSegmentCount > 4)
+						{
+							data.destroy();
+							return false;
+						}
+
+						data.skip(type);
+					}
+					else
+					{
+						data.destroy();
+						return false;
+					}
+
 				case END_FILL:
+					if (hasBitmapFill && (linePathMoveCount > 0 || linePathSegmentCount > 0) && !(linePathMoveCount == 1 && linePathSegmentCount == 4))
+					{
+						data.destroy();
+						return false;
+					}
+
+					resetLinePathCompatibility();
 					hasBitmapFill = false;
 					hasColorFill = false;
 					hasShaderFill = false;
-					data.skip(type);
-
-				case MOVE_TO:
 					data.skip(type);
 
 				case OVERRIDE_BLEND_MODE:
@@ -656,6 +787,7 @@ class Context3DGraphics
 		data.destroy();
 		return true;
 	}
+
 
 	public static function render(graphics:Graphics, renderer:OpenGLRenderer):Void
 	{
@@ -750,6 +882,10 @@ class Context3DGraphics
 
 				var positionX = 0.0;
 				var positionY = 0.0;
+				var linePathVertices = tempLinePathVertices;
+				var linePathMoveCount = 0;
+				var linePathSegmentCount = 0;
+				linePathVertices.length = 0;
 
 				var quadBufferPosition = 0;
 				var shaderBufferOffset = 0;
@@ -871,11 +1007,35 @@ class Context3DGraphics
 					}
 				}
 
+				inline function flushBitmapLinePath():Void
+				{
+					if (bitmap != null && linePathMoveCount == 1 && linePathSegmentCount == 4)
+					{
+						var numVertices = Std.int(linePathVertices.length / 2);
+						if (numVertices >= 2
+							&& linePathVertices[0] == linePathVertices[linePathVertices.length - 2]
+							&& linePathVertices[1] == linePathVertices[linePathVertices.length - 1])
+						{
+							numVertices--;
+						}
+
+						if (numVertices == 4)
+						{
+							renderDrawTriangles(8, 6, 8, NONE);
+						}
+					}
+
+					linePathVertices.length = 0;
+					linePathMoveCount = 0;
+					linePathSegmentCount = 0;
+				}
+
 				for (type in graphics.__commands.types)
 				{
 					switch (type)
 					{
 						case BEGIN_BITMAP_FILL:
+							flushBitmapLinePath();
 							var c = data.readBeginBitmapFill();
 							bitmap = c.bitmap;
 							bitmapMatrix = c.matrix;
@@ -885,6 +1045,7 @@ class Context3DGraphics
 							fill = null;
 
 						case BEGIN_GRADIENT_FILL:
+							flushBitmapLinePath();
 							// not implemented yet, but we don't want to keep
 							// the previous fill either.
 							data.skip(type);
@@ -895,6 +1056,7 @@ class Context3DGraphics
 							bitmapMatrix = null;
 
 						case BEGIN_FILL:
+							flushBitmapLinePath();
 							var c = data.readBeginFill();
 							var color = Std.int(c.color);
 							var alpha = Std.int(c.alpha * 0xFF);
@@ -905,6 +1067,7 @@ class Context3DGraphics
 							bitmapMatrix = null;
 
 						case BEGIN_SHADER_FILL:
+							flushBitmapLinePath();
 							var c = data.readBeginShaderFill();
 							shaderBuffer = c.shaderBuffer;
 							shaderBufferOffset = 0;
@@ -922,6 +1085,7 @@ class Context3DGraphics
 							bitmapMatrix = null;
 
 						case DRAW_QUADS:
+							flushBitmapLinePath();
 							if (bitmap != null || fill != null)
 							{
 								var c = data.readDrawQuads();
@@ -1013,6 +1177,7 @@ class Context3DGraphics
 								renderer.__clearShader();
 							}
 						case DRAW_CIRCLE:
+							flushBitmapLinePath();
 							var c = data.readDrawCircle();
 							var radius = c.radius;
 
@@ -1020,6 +1185,7 @@ class Context3DGraphics
 							renderDrawTriangles(numVertices * 2, (numVertices - 2) * 3, 0, NONE);
 
 						case DRAW_ELLIPSE:
+							flushBitmapLinePath();
 							var c = data.readDrawEllipse();
 							var radiusX = c.width / 2.0;
 							var radiusY = c.height / 2.0;
@@ -1031,6 +1197,7 @@ class Context3DGraphics
 							renderDrawTriangles(numVertices * 2, (numVertices - 2) * 3, 0, NONE);
 
 						case DRAW_ROUND_RECT:
+							flushBitmapLinePath();
 							var c = data.readDrawRoundRect();
 							var radiusX = c.ellipseWidth / 2.0;
 							var radiusY = (c.ellipseHeight != null ? c.ellipseHeight : c.ellipseWidth) / 2.0;
@@ -1046,6 +1213,7 @@ class Context3DGraphics
 							renderDrawTriangles(numVertices * 2, (numVertices - 2) * 3, 0, NONE);
 
 						case DRAW_RECT:
+							flushBitmapLinePath();
 							var c = data.readDrawRect();
 
 							if (bitmap != null)
@@ -1113,6 +1281,7 @@ class Context3DGraphics
 							}
 
 						case DRAW_TRIANGLES:
+							flushBitmapLinePath();
 							var c = data.readDrawTriangles();
 							var vertices = c.vertices;
 							var indices = c.indices;
@@ -1122,6 +1291,7 @@ class Context3DGraphics
 							renderDrawTriangles(vertices.length, indices != null ? indices.length : 0, uvtData != null ? uvtData.length : 0, culling);
 
 						case END_FILL:
+							flushBitmapLinePath();
 							bitmap = null;
 							bitmapMatrix = null;
 							fill = null;
@@ -1131,14 +1301,28 @@ class Context3DGraphics
 
 						case MOVE_TO:
 							var c = data.readMoveTo();
+							flushBitmapLinePath();
 							positionX = c.x;
 							positionY = c.y;
+							linePathVertices.push(c.x);
+							linePathVertices.push(c.y);
+							linePathMoveCount = 1;
+
+						case LINE_TO:
+							var c = data.readLineTo();
+							positionX = c.x;
+							positionY = c.y;
+							linePathVertices.push(c.x);
+							linePathVertices.push(c.y);
+							linePathSegmentCount++;
 
 						case OVERRIDE_BLEND_MODE:
+							flushBitmapLinePath();
 							var c = data.readOverrideBlendMode();
 							renderer.__setBlendMode(c.blendMode);
 
 						default:
+							flushBitmapLinePath();
 							data.skip(type);
 					}
 				}
@@ -1269,6 +1453,32 @@ class Context3DGraphics
 		{
 			result[i] = trianglesWidth * (vertices[i] / trianglesWidth) / bitmap.width;
 			result[i + 1] = trianglesHeight * (vertices[i + 1] / trianglesHeight) / bitmap.height;
+			i += 2;
+		}
+	}
+
+	private static function populateBitmapUvtVector(vertices:Vector<Float>, bitmap:BitmapData, bitmapMatrix:Matrix, result:Vector<Float>):Void
+	{
+		if (bitmapMatrix == null)
+		{
+			populateUvtVector(vertices, bitmap, result);
+			return;
+		}
+
+		var inverse = bitmapMatrix.clone();
+		inverse.invert();
+
+		result.length = vertices.length;
+
+		var i = 0;
+		var length = vertices.length;
+
+		while (i < length)
+		{
+			var x = vertices[i];
+			var y = vertices[i + 1];
+			result[i] = inverse.__transformX(x, y) / bitmap.width;
+			result[i + 1] = inverse.__transformY(x, y) / bitmap.height;
 			i += 2;
 		}
 	}

@@ -420,6 +420,7 @@ class DisplayObjectRenderer extends EventDispatcher
 					var fillColor = displayObject.opaqueBackground != null ? (0xFF << 24) | displayObject.opaqueBackground : 0;
 					var bitmapColor = needsFill ? 0 : fillColor;
 					var allowFramebuffer = (renderer.__type == OPENGL);
+					var usePartialOpenGLCacheClear = (renderer.__type == OPENGL && renderType == OPENGL && !hasFilters);
 
 					if (displayObject.__cacheBitmapData == null
 						|| bitmapWidth > displayObject.__cacheBitmapData.width
@@ -433,7 +434,8 @@ class DisplayObjectRenderer extends EventDispatcher
 					}
 					else
 					{
-						displayObject.__cacheBitmapData.__fillRect(displayObject.__cacheBitmapData.rect, bitmapColor, allowFramebuffer);
+						__clearCacheBitmapData(displayObject.__cacheBitmapData, bitmapColor, allowFramebuffer, usePartialOpenGLCacheClear, filterWidth,
+							filterHeight);
 					}
 
 					if (needsFill)
@@ -606,11 +608,15 @@ class DisplayObjectRenderer extends EventDispatcher
 
 					if (hasFilters)
 					{
+						var hasActiveFilters = false;
 						var needSecondBitmapData = true;
 						var needCopyOfOriginal = false;
 
 						for (filter in displayObject.__filters)
 						{
+							if (filter.__numShaderPasses <= 0) continue;
+
+							hasActiveFilters = true;
 							// if (filter.__needSecondBitmapData) {
 							// 	needSecondBitmapData = true;
 							// }
@@ -620,90 +626,111 @@ class DisplayObjectRenderer extends EventDispatcher
 							}
 						}
 
-						var bitmap = displayObject.__cacheBitmapData;
-						var bitmap2:BitmapData = null;
-						var bitmap3:BitmapData = null;
-
-						// if (needSecondBitmapData) {
-						if (displayObject.__cacheBitmapData2 == null
-							|| bitmapWidth > displayObject.__cacheBitmapData2.width
-							|| bitmapHeight > displayObject.__cacheBitmapData2.height)
+						if (hasActiveFilters)
 						{
-							displayObject.__cacheBitmapData2 = new BitmapData(bitmapWidth, bitmapHeight, true, 0);
+							var bitmap = displayObject.__cacheBitmapData;
+							var bitmap2:BitmapData = null;
+							var bitmap3:BitmapData = null;
+
+							// if (needSecondBitmapData) {
+							if (displayObject.__cacheBitmapData2 == null
+								|| bitmapWidth > displayObject.__cacheBitmapData2.width
+								|| bitmapHeight > displayObject.__cacheBitmapData2.height)
+							{
+								displayObject.__cacheBitmapData2 = new BitmapData(bitmapWidth, bitmapHeight, true, 0);
+							}
+							displayObject.__cacheBitmapData2.__setUVRect(context, 0, 0, filterWidth, filterHeight);
+							bitmap2 = displayObject.__cacheBitmapData2;
+							// } else {
+							// 	bitmap2 = bitmapData;
+							// }
+
+							if (needCopyOfOriginal)
+							{
+								if (displayObject.__cacheBitmapData3 == null
+									|| bitmapWidth > displayObject.__cacheBitmapData3.width
+									|| bitmapHeight > displayObject.__cacheBitmapData3.height)
+								{
+									displayObject.__cacheBitmapData3 = new BitmapData(bitmapWidth, bitmapHeight, true, 0);
+								}
+								displayObject.__cacheBitmapData3.__setUVRect(context, 0, 0, filterWidth, filterHeight);
+								bitmap3 = displayObject.__cacheBitmapData3;
+							}
+
+							childRenderer.__setBlendMode(NORMAL);
+							childRenderer.__worldAlpha = 1;
+							childRenderer.__worldTransform.identity();
+							childRenderer.__worldColorTransform.__identity();
+
+							// var sourceRect = bitmap.rect;
+							// if (__tempPoint == null) __tempPoint = new Point ();
+							// var destPoint = __tempPoint;
+							var shader:Shader;
+							var cacheBitmap:BitmapData;
+
+							for (filter in displayObject.__filters)
+							{
+								if (filter.__numShaderPasses <= 0)
+								{
+									filter.__renderDirty = false;
+									continue;
+								}
+
+								if (filter.__preserveObject)
+								{
+									var originalBitmap = bitmap;
+									var sourceBitmap = bitmap;
+									var targetBitmap:BitmapData;
+
+									for (i in 0...filter.__numShaderPasses)
+									{
+										targetBitmap = (sourceBitmap == bitmap2) ? bitmap3 : bitmap2;
+										shader = filter.__initShader(childRenderer, i, originalBitmap);
+										childRenderer.__setBlendMode(filter.__shaderBlendMode);
+										childRenderer.__setRenderTarget(targetBitmap);
+										childRenderer.__renderFilterPass(sourceBitmap, shader, filter.__smooth, true, false);
+
+										sourceBitmap = targetBitmap;
+									}
+
+									bitmap = sourceBitmap;
+									if (bitmap == bitmap2)
+									{
+										bitmap2 = originalBitmap;
+									}
+									else if (bitmap == bitmap3)
+									{
+										bitmap3 = originalBitmap;
+									}
+								}
+								else
+								{
+									for (i in 0...filter.__numShaderPasses)
+									{
+										shader = filter.__initShader(childRenderer, i, null);
+										childRenderer.__setBlendMode(filter.__shaderBlendMode);
+										childRenderer.__setRenderTarget(bitmap2);
+										childRenderer.__renderFilterPass(bitmap, shader, filter.__smooth, true, false);
+
+										cacheBitmap = bitmap;
+										bitmap = bitmap2;
+										bitmap2 = cacheBitmap;
+									}
+								}
+
+								filter.__renderDirty = false;
+							}
+
+							displayObject.__cacheBitmapData = bitmap;
+							displayObject.__cacheBitmapData2 = bitmap2;
+							if (needCopyOfOriginal) displayObject.__cacheBitmapData3 = bitmap3;
 						}
 						else
 						{
-							displayObject.__cacheBitmapData2.fillRect(displayObject.__cacheBitmapData2.rect, 0);
-							if (displayObject.__cacheBitmapData2.image != null)
+							for (filter in displayObject.__filters)
 							{
-								displayObject.__cacheBitmapData2.__textureVersion = displayObject.__cacheBitmapData2.image.version + 1;
+								filter.__renderDirty = false;
 							}
-						}
-						displayObject.__cacheBitmapData2.__setUVRect(context, 0, 0, filterWidth, filterHeight);
-						bitmap2 = displayObject.__cacheBitmapData2;
-						// } else {
-						// 	bitmap2 = bitmapData;
-						// }
-
-						if (needCopyOfOriginal)
-						{
-							if (displayObject.__cacheBitmapData3 == null
-								|| bitmapWidth > displayObject.__cacheBitmapData3.width
-								|| bitmapHeight > displayObject.__cacheBitmapData3.height)
-							{
-								displayObject.__cacheBitmapData3 = new BitmapData(bitmapWidth, bitmapHeight, true, 0);
-							}
-							else
-							{
-								displayObject.__cacheBitmapData3.fillRect(displayObject.__cacheBitmapData3.rect, 0);
-								if (displayObject.__cacheBitmapData3.image != null)
-								{
-									displayObject.__cacheBitmapData3.__textureVersion = displayObject.__cacheBitmapData3.image.version + 1;
-								}
-							}
-							displayObject.__cacheBitmapData3.__setUVRect(context, 0, 0, filterWidth, filterHeight);
-							bitmap3 = displayObject.__cacheBitmapData3;
-						}
-
-						childRenderer.__setBlendMode(NORMAL);
-						childRenderer.__worldAlpha = 1;
-						childRenderer.__worldTransform.identity();
-						childRenderer.__worldColorTransform.__identity();
-
-						// var sourceRect = bitmap.rect;
-						// if (__tempPoint == null) __tempPoint = new Point ();
-						// var destPoint = __tempPoint;
-						var shader:Shader;
-						var cacheBitmap:BitmapData;
-
-						for (filter in displayObject.__filters)
-						{
-							if (filter.__preserveObject)
-							{
-								childRenderer.__setRenderTarget(bitmap3);
-								childRenderer.__renderFilterPass(bitmap, childRenderer.__defaultDisplayShader, filter.__smooth);
-							}
-
-							for (i in 0...filter.__numShaderPasses)
-							{
-								shader = filter.__initShader(childRenderer, i, filter.__preserveObject ? bitmap3 : null);
-								childRenderer.__setBlendMode(filter.__shaderBlendMode);
-								childRenderer.__setRenderTarget(bitmap2);
-								childRenderer.__renderFilterPass(bitmap, shader, filter.__smooth);
-
-								cacheBitmap = bitmap;
-								bitmap = bitmap2;
-								bitmap2 = cacheBitmap;
-							}
-
-							filter.__renderDirty = false;
-						}
-
-						if (displayObject.__cacheBitmapData != bitmap)
-						{
-							cacheBitmap = displayObject.__cacheBitmapData;
-							displayObject.__cacheBitmapData = bitmap;
-							displayObject.__cacheBitmapData2 = cacheBitmap;
 						}
 
 						displayObject.__cacheBitmap.__bitmapData = displayObject.__cacheBitmapData;
@@ -740,11 +767,15 @@ class DisplayObjectRenderer extends EventDispatcher
 
 					if (hasFilters)
 					{
+						var hasActiveFilters = false;
 						var needSecondBitmapData = false;
 						var needCopyOfOriginal = false;
 
 						for (filter in displayObject.__filters)
 						{
+							if (filter.__numShaderPasses <= 0) continue;
+
+							hasActiveFilters = true;
 							if (filter.__needSecondBitmapData)
 							{
 								needSecondBitmapData = true;
@@ -755,86 +786,102 @@ class DisplayObjectRenderer extends EventDispatcher
 							}
 						}
 
-						var bitmap = displayObject.__cacheBitmapData;
-						var bitmap2:BitmapData = null;
-						var bitmap3:BitmapData = null;
-
-						if (needSecondBitmapData)
+						if (hasActiveFilters)
 						{
-							if (displayObject.__cacheBitmapData2 == null
-								|| displayObject.__cacheBitmapData2.image == null
-								|| bitmapWidth > displayObject.__cacheBitmapData2.width
-								|| bitmapHeight > displayObject.__cacheBitmapData2.height)
+							var bitmap = displayObject.__cacheBitmapData;
+							var bitmap2:BitmapData = null;
+							var bitmap3:BitmapData = null;
+
+							if (needSecondBitmapData)
 							{
-								displayObject.__cacheBitmapData2 = new BitmapData(bitmapWidth, bitmapHeight, true, 0);
+								if (displayObject.__cacheBitmapData2 == null
+									|| displayObject.__cacheBitmapData2.image == null
+									|| bitmapWidth > displayObject.__cacheBitmapData2.width
+									|| bitmapHeight > displayObject.__cacheBitmapData2.height)
+								{
+									displayObject.__cacheBitmapData2 = new BitmapData(bitmapWidth, bitmapHeight, true, 0);
+								}
+								else
+								{
+									displayObject.__cacheBitmapData2.fillRect(displayObject.__cacheBitmapData2.rect, 0);
+								}
+								bitmap2 = displayObject.__cacheBitmapData2;
 							}
 							else
 							{
-								displayObject.__cacheBitmapData2.fillRect(displayObject.__cacheBitmapData2.rect, 0);
+								bitmap2 = bitmap;
 							}
-							bitmap2 = displayObject.__cacheBitmapData2;
+
+							if (needCopyOfOriginal)
+							{
+								if (displayObject.__cacheBitmapData3 == null
+									|| displayObject.__cacheBitmapData3.image == null
+									|| bitmapWidth > displayObject.__cacheBitmapData3.width
+									|| bitmapHeight > displayObject.__cacheBitmapData3.height)
+								{
+									displayObject.__cacheBitmapData3 = new BitmapData(bitmapWidth, bitmapHeight, true, 0);
+								}
+								else
+								{
+									displayObject.__cacheBitmapData3.fillRect(displayObject.__cacheBitmapData3.rect, 0);
+								}
+								bitmap3 = displayObject.__cacheBitmapData3;
+							}
+
+							if (displayObject.__tempPoint == null) displayObject.__tempPoint = new Point();
+							var destPoint = displayObject.__tempPoint;
+							var cacheBitmap:BitmapData;
+							var lastBitmap:BitmapData;
+
+							for (filter in displayObject.__filters)
+							{
+								if (filter.__numShaderPasses <= 0)
+								{
+									filter.__renderDirty = false;
+									continue;
+								}
+
+								if (filter.__preserveObject)
+								{
+									bitmap3.copyPixels(bitmap, bitmap.rect, destPoint);
+								}
+
+								lastBitmap = filter.__applyFilter(bitmap2, bitmap, bitmap.rect, destPoint);
+
+								if (filter.__preserveObject)
+								{
+									lastBitmap.draw(bitmap3, null,
+										displayObject.__objectTransform != null ? displayObject.__objectTransform.__colorTransform : null);
+								}
+								filter.__renderDirty = false;
+
+								if (needSecondBitmapData && lastBitmap == bitmap2)
+								{
+									cacheBitmap = bitmap;
+									bitmap = bitmap2;
+									bitmap2 = cacheBitmap;
+								}
+							}
+
+							if (displayObject.__cacheBitmapData != bitmap)
+							{
+								// TODO: Fix issue with swapping __cacheBitmap.__bitmapData
+								// __cacheBitmapData.copyPixels (bitmap, bitmap.rect, destPoint);
+
+								// Adding __cacheBitmapRenderer = null; makes this work
+								cacheBitmap = displayObject.__cacheBitmapData;
+								displayObject.__cacheBitmapData = bitmap;
+								displayObject.__cacheBitmapData2 = cacheBitmap;
+								displayObject.__cacheBitmap.__bitmapData = displayObject.__cacheBitmapData;
+								displayObject.__cacheBitmapRenderer = null;
+							}
 						}
 						else
 						{
-							bitmap2 = bitmap;
-						}
-
-						if (needCopyOfOriginal)
-						{
-							if (displayObject.__cacheBitmapData3 == null
-								|| displayObject.__cacheBitmapData3.image == null
-								|| bitmapWidth > displayObject.__cacheBitmapData3.width
-								|| bitmapHeight > displayObject.__cacheBitmapData3.height)
+							for (filter in displayObject.__filters)
 							{
-								displayObject.__cacheBitmapData3 = new BitmapData(bitmapWidth, bitmapHeight, true, 0);
+								filter.__renderDirty = false;
 							}
-							else
-							{
-								displayObject.__cacheBitmapData3.fillRect(displayObject.__cacheBitmapData3.rect, 0);
-							}
-							bitmap3 = displayObject.__cacheBitmapData3;
-						}
-
-						if (displayObject.__tempPoint == null) displayObject.__tempPoint = new Point();
-						var destPoint = displayObject.__tempPoint;
-						var cacheBitmap:BitmapData;
-						var lastBitmap:BitmapData;
-
-						for (filter in displayObject.__filters)
-						{
-							if (filter.__preserveObject)
-							{
-								bitmap3.copyPixels(bitmap, bitmap.rect, destPoint);
-							}
-
-							lastBitmap = filter.__applyFilter(bitmap2, bitmap, bitmap.rect, destPoint);
-
-							if (filter.__preserveObject)
-							{
-								lastBitmap.draw(bitmap3, null,
-									displayObject.__objectTransform != null ? displayObject.__objectTransform.__colorTransform : null);
-							}
-							filter.__renderDirty = false;
-
-							if (needSecondBitmapData && lastBitmap == bitmap2)
-							{
-								cacheBitmap = bitmap;
-								bitmap = bitmap2;
-								bitmap2 = cacheBitmap;
-							}
-						}
-
-						if (displayObject.__cacheBitmapData != bitmap)
-						{
-							// TODO: Fix issue with swapping __cacheBitmap.__bitmapData
-							// __cacheBitmapData.copyPixels (bitmap, bitmap.rect, destPoint);
-
-							// Adding __cacheBitmapRenderer = null; makes this work
-							cacheBitmap = displayObject.__cacheBitmapData;
-							displayObject.__cacheBitmapData = bitmap;
-							displayObject.__cacheBitmapData2 = cacheBitmap;
-							displayObject.__cacheBitmap.__bitmapData = displayObject.__cacheBitmapData;
-							displayObject.__cacheBitmapRenderer = null;
 						}
 
 						displayObject.__cacheBitmap.__imageVersion = displayObject.__cacheBitmapData.__textureVersion;
@@ -900,6 +947,23 @@ class DisplayObjectRenderer extends EventDispatcher
 		return (Math.abs(a.a - b.a) > eps) || (Math.abs(a.b - b.b) > eps) || (Math.abs(a.c - b.c) > eps) || (Math.abs(a.d - b.d) > eps);
 	}
 
+	@:noCompletion private static function __clearCacheBitmapData(bitmapData:BitmapData, color:Int, allowFramebuffer:Bool, partialClear:Bool,
+			activeWidth:Int, activeHeight:Int):Void
+	{
+		if (bitmapData == null) return;
+
+		if (partialClear && activeWidth > 0 && activeHeight > 0 && (activeWidth < bitmapData.width || activeHeight < bitmapData.height))
+		{
+			var rect = Rectangle.__pool.get();
+			rect.setTo(0, 0, activeWidth, activeHeight);
+			bitmapData.__fillRect(rect, color, allowFramebuffer);
+			Rectangle.__pool.release(rect);
+		}
+		else
+		{
+			bitmapData.__fillRect(bitmapData.rect, color, allowFramebuffer);
+		}
+	}
 	#if (haxe_ver >= 4.2)
 	@:noCompletion private inline function __isShaderFilter(f:Dynamic):Bool
 		return Std.isOfType(f, ShaderFilter);

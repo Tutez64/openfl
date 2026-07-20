@@ -51,8 +51,6 @@ class CairoGraphics
 	private static var graphics:Graphics;
 	private static var hasFill:Bool;
 	private static var hasStroke:Bool;
-	private static var hitTestBitmap:BitmapData;
-	private static var hitTestCairo:Cairo;
 	private static var hitTesting:Bool;
 	private static var inversePendingMatrix:Matrix;
 	private static var pendingMatrix:Matrix;
@@ -477,21 +475,22 @@ class CairoGraphics
 			#end
 			if (hasScale9Grid)
 			{
-				x = toScale9Position(x, scale9Grid.x, scale9Grid.width, bounds.width, graphics.__owner.scaleX);
-				y = toScale9Position(y, scale9Grid.y, scale9Grid.height, bounds.height, graphics.__owner.scaleY);
+				x *= graphics.__owner.scaleX;
+				y *= graphics.__owner.scaleY;
 			}
 
 			x -= bounds.x;
 			y -= bounds.y;
 
-			if (hitTestCairo == null)
+			if (graphics.__cairo == null)
 			{
-				hitTestBitmap = new BitmapData(1, 1, true, 0);
-				hitTestCairo = new Cairo(hitTestBitmap.getSurface());
+				var bitmap = new BitmapData(Math.floor(Math.max(1, bounds.width)), Math.floor(Math.max(1, bounds.height)), true, 0);
+				var surface = bitmap.getSurface();
+				graphics.__cairo = new Cairo(surface);
+				// graphics.__bitmap = bitmap;
 			}
 
-			cairo = hitTestCairo;
-			cairo.identityMatrix();
+			cairo = graphics.__cairo;
 
 			fillCommands.clear();
 			strokeCommands.clear();
@@ -1856,25 +1855,6 @@ class CairoGraphics
 		var pixelRatio = renderer.__pixelRatio;
 		#end
 
-		var scale9Grid:Rectangle = graphics.__owner.__scale9Grid;
-		#if (openfl_legacy_scale9grid && !cairo)
-		var hasScale9Grid:Bool = false;
-		#else
-		// no scale9Grid for masks
-		// no scale9Grid for rotation 0.02 degrees or higher (less than 0.02 is allowed in flash)
-		var hasScale9Grid = scale9Grid != null && !graphics.__owner.__isMask && Math.abs(graphics.__owner.__rotation) < 0.02;
-		#end
-		if (hasScale9Grid)
-		{
-			graphics.__bitmapScaleX = graphics.__owner.scaleX;
-			graphics.__bitmapScaleY = graphics.__owner.scaleY;
-		}
-		else
-		{
-			graphics.__bitmapScaleX = 1;
-			graphics.__bitmapScaleY = 1;
-		}
-
 		graphics.__update(renderer.__worldTransform, pixelRatio, allowRenderSizeReuse);
 
 		var width = graphics.__renderWidth;
@@ -1902,6 +1882,25 @@ class CairoGraphics
 			return;
 		}
 
+		var scale9Grid:Rectangle = graphics.__owner.__scale9Grid;
+		#if (openfl_legacy_scale9grid && !cairo)
+		var hasScale9Grid:Bool = false;
+		#else
+		// no scale9Grid for masks
+		// no scale9Grid for rotation 0.02 degrees or higher (less than 0.02 is allowed in flash)
+		var hasScale9Grid = scale9Grid != null && !graphics.__owner.__isMask && Math.abs(graphics.__owner.__rotation) < 0.02;
+		#end
+		if (hasScale9Grid)
+		{
+			graphics.__bitmapScaleX = graphics.__owner.scaleX;
+			graphics.__bitmapScaleY = graphics.__owner.scaleY;
+		}
+		else
+		{
+			graphics.__bitmapScaleX = 1;
+			graphics.__bitmapScaleY = 1;
+		}
+
 		bounds = graphics.__bounds;
 
 		if (!graphics.__visible || graphics.__commands.length == 0 || bounds == null || width < 1 || height < 1)
@@ -1912,6 +1911,7 @@ class CairoGraphics
 		else
 		{
 			hitTesting = false;
+
 			if (graphics.__cairo != null)
 			{
 				var surface:CairoImageSurface = cast graphics.__cairo.target;

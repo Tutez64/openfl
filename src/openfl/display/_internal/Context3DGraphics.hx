@@ -637,6 +637,9 @@ class Context3DGraphics
 
 		var data = new DrawCommandReader(graphics.__commands);
 		var hasColorFill = false, hasBitmapFill = false, hasShaderFill = false;
+		// A second shape in the same fill may intersect the first and require a
+		// cutout. The legacy hardware path cannot represent that reliably.
+		var hasDrawnFilledShape = false;
 		var linePathVertices = tempLinePathVertices;
 		var reducedLinePathVertices = tempLinePathReducedVertices;
 		var linePathMoveCount = 0;
@@ -656,7 +659,7 @@ class Context3DGraphics
 		{
 			if (hasBitmapFill && (linePathMoveCount > 0 || linePathSegmentCount > 0))
 			{
-				if (linePathMoveCount != 1)
+				if (hasDrawnFilledShape || linePathMoveCount != 1)
 				{
 					data.destroy();
 					return cacheCompatibility(false);
@@ -668,6 +671,8 @@ class Context3DGraphics
 					data.destroy();
 					return cacheCompatibility(false);
 				}
+
+				hasDrawnFilledShape = true;
 			}
 
 			resetLinePathCompatibility();
@@ -692,6 +697,7 @@ class Context3DGraphics
 					hasBitmapFill = true;
 					hasColorFill = false;
 					hasShaderFill = false;
+					hasDrawnFilledShape = false;
 
 				case BEGIN_FILL:
 					if (!flushLinePathCompatibility())
@@ -701,6 +707,7 @@ class Context3DGraphics
 					hasBitmapFill = false;
 					hasColorFill = true;
 					hasShaderFill = false;
+					hasDrawnFilledShape = false;
 					data.skip(type);
 
 				case BEGIN_SHADER_FILL:
@@ -711,25 +718,17 @@ class Context3DGraphics
 					hasBitmapFill = false;
 					hasColorFill = false;
 					hasShaderFill = true;
-
-				case LINE_STYLE:
-					var c = data.readLineStyle();
-					if (c.thickness == null)
-					{
-					}
-					else
-					{
-						data.destroy();
-						return cacheCompatibility(false);
-					}
+					hasDrawnFilledShape = false;
+					data.skip(type);
 
 				case DRAW_QUADS:
 					if (!flushLinePathCompatibility())
 					{
 						return false;
 					}
-					if (hasColorFill || hasBitmapFill || hasShaderFill)
+					if (!hasDrawnFilledShape && (hasColorFill || hasBitmapFill || hasShaderFill))
 					{
+						hasDrawnFilledShape = true;
 						data.skip(type);
 					}
 					else
@@ -743,8 +742,9 @@ class Context3DGraphics
 					{
 						return false;
 					}
-					if (hasColorFill || hasBitmapFill || hasShaderFill)
+					if (!hasDrawnFilledShape && (hasColorFill || hasBitmapFill || hasShaderFill))
 					{
+						hasDrawnFilledShape = true;
 						data.skip(type);
 					}
 					else
@@ -758,8 +758,9 @@ class Context3DGraphics
 					{
 						return false;
 					}
-					if (hasColorFill || hasBitmapFill || hasShaderFill)
+					if (!hasDrawnFilledShape && (hasColorFill || hasBitmapFill || hasShaderFill))
 					{
+						hasDrawnFilledShape = true;
 						data.skip(type);
 					}
 					else
@@ -773,8 +774,9 @@ class Context3DGraphics
 					{
 						return false;
 					}
-					if (hasColorFill || hasBitmapFill || hasShaderFill)
+					if (!hasDrawnFilledShape && (hasColorFill || hasBitmapFill || hasShaderFill))
 					{
+						hasDrawnFilledShape = true;
 						data.skip(type);
 					}
 					else
@@ -788,8 +790,9 @@ class Context3DGraphics
 					{
 						return false;
 					}
-					if (hasColorFill || hasBitmapFill || hasShaderFill)
+					if (!hasDrawnFilledShape && (hasColorFill || hasBitmapFill || hasShaderFill))
 					{
+						hasDrawnFilledShape = true;
 						data.skip(type);
 					}
 					else
@@ -803,8 +806,9 @@ class Context3DGraphics
 					{
 						return false;
 					}
-					if (hasColorFill || hasBitmapFill || hasShaderFill)
+					if (!hasDrawnFilledShape && (hasColorFill || hasBitmapFill || hasShaderFill))
 					{
+						hasDrawnFilledShape = true;
 						data.skip(type);
 					}
 					else
@@ -846,6 +850,14 @@ class Context3DGraphics
 						return cacheCompatibility(false);
 					}
 
+				case LINE_STYLE:
+					var c = data.readLineStyle();
+					if (c.thickness != null)
+					{
+						data.destroy();
+						return cacheCompatibility(false);
+					}
+
 				case END_FILL:
 					if (!flushLinePathCompatibility())
 					{
@@ -855,6 +867,7 @@ class Context3DGraphics
 					hasBitmapFill = false;
 					hasColorFill = false;
 					hasShaderFill = false;
+					hasDrawnFilledShape = false;
 					data.skip(type);
 
 				case OVERRIDE_BLEND_MODE:

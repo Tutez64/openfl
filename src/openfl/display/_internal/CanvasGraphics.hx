@@ -623,6 +623,20 @@ class CanvasGraphics
 		{
 			hitTesting = true;
 
+			var scale9Grid:Rectangle = graphics.__owner.__scale9Grid;
+			#if (openfl_legacy_scale9grid && !canvas)
+			var hasScale9Grid:Bool = false;
+			#else
+			// no scale9Grid for masks
+			// no scale9Grid for rotation 0.02 degrees or higher (less than 0.02 is allowed in flash)
+			var hasScale9Grid = scale9Grid != null && !graphics.__owner.__isMask && Math.abs(graphics.__owner.__rotation) < 0.02;
+			#end
+			if (hasScale9Grid)
+			{
+				x *= graphics.__owner.scaleX;
+				y *= graphics.__owner.scaleY;
+			}
+
 			var transform = graphics.__renderTransform;
 
 			var px = transform.__transformX(x, y);
@@ -1987,30 +2001,15 @@ class CanvasGraphics
 	public static function render(graphics:Graphics, renderer:CanvasRenderer, allowRenderSizeReuse:Bool = false):Void
 	{
 		#if (js && html5)
+		CanvasGraphics.graphics = graphics;
+		CanvasGraphics.allowSmoothing = renderer.__allowSmoothing;
+		CanvasGraphics.worldAlpha = renderer.__getAlpha(graphics.__owner.__worldAlpha);
+
 		#if (openfl_disable_hdpi || openfl_disable_hdpi_graphics)
 		var pixelRatio = 1;
 		#else
 		var pixelRatio = renderer.__pixelRatio;
 		#end
-
-		var scale9Grid:Rectangle = graphics.__owner.__scale9Grid;
-		#if (openfl_legacy_scale9grid && !canvas)
-		var hasScale9Grid:Bool = false;
-		#else
-		// no scale9Grid for masks
-		// no scale9Grid for rotation 0.02 degrees or higher (less than 0.02 is allowed in flash)
-		var hasScale9Grid = scale9Grid != null && !graphics.__owner.__isMask && Math.abs(graphics.__owner.__rotation) < 0.02;
-		#end
-		if (hasScale9Grid)
-		{
-			graphics.__bitmapScaleX = graphics.__owner.scaleX;
-			graphics.__bitmapScaleY = graphics.__owner.scaleY;
-		}
-		else
-		{
-			graphics.__bitmapScaleX = 1;
-			graphics.__bitmapScaleY = 1;
-		}
 
 		graphics.__update(renderer.__worldTransform, pixelRatio, allowRenderSizeReuse);
 
@@ -2038,13 +2037,35 @@ class CanvasGraphics
 			}
 		}
 
+		if (!graphics.__softwareDirty || graphics.__managed)
+		{
+			CanvasGraphics.graphics = null;
+			return;
+		}
+
+		var scale9Grid:Rectangle = graphics.__owner.__scale9Grid;
+		#if (openfl_legacy_scale9grid && !canvas)
+		var hasScale9Grid:Bool = false;
+		#else
+		// no scale9Grid for masks
+		// no scale9Grid for rotation 0.02 degrees or higher (less than 0.02 is allowed in flash)
+		var hasScale9Grid = scale9Grid != null && !graphics.__owner.__isMask && Math.abs(graphics.__owner.__rotation) < 0.02;
+		#end
+		if (hasScale9Grid)
+		{
+			graphics.__bitmapScaleX = graphics.__owner.scaleX;
+			graphics.__bitmapScaleY = graphics.__owner.scaleY;
+		}
+		else
+		{
+			graphics.__bitmapScaleX = 1;
+			graphics.__bitmapScaleY = 1;
+		}
+
 		if (graphics.__softwareDirty)
 		{
 			hitTesting = false;
 
-			CanvasGraphics.graphics = graphics;
-			CanvasGraphics.allowSmoothing = renderer.__allowSmoothing;
-			CanvasGraphics.worldAlpha = renderer.__getAlpha(graphics.__owner.__worldAlpha);
 			bounds = graphics.__bounds;
 
 			if (!graphics.__visible || graphics.__commands.length == 0 || bounds == null || width < 1 || height < 1)

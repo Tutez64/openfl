@@ -628,6 +628,11 @@ class CairoGraphics
 			x -= bounds.x;
 			y -= bounds.y;
 
+			// use a shared 1x1 Cairo instance for hit testing to avoid
+			// allocating extra surfaces on graphics that don't need them (such
+			// as those that are rendered on the GL path instead).
+			// cairo uses the vectors for hit testing, so a tiny 1x1 surface
+			// does not negatively affect accuracy.
 			if (hitTestCairo == null)
 			{
 				hitTestBitmap = new BitmapData(1, 1, true, 0);

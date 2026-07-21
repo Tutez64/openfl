@@ -610,6 +610,9 @@ class CairoGraphics
 		{
 			hitTesting = true;
 
+			x -= bounds.x;
+			y -= bounds.y;
+
 			var scale9Grid:Rectangle = graphics.__owner.__scale9Grid;
 			#if (openfl_legacy_scale9grid && !cairo)
 			var hasScale9Grid:Bool = false;
@@ -623,9 +626,6 @@ class CairoGraphics
 				x = toScale9Position(x, scale9Grid.x, scale9Grid.width, bounds.width, graphics.__owner.scaleX);
 				y = toScale9Position(y, scale9Grid.y, scale9Grid.height, bounds.height, graphics.__owner.scaleY);
 			}
-
-			x -= bounds.x;
-			y -= bounds.y;
 
 			// use a shared 1x1 Cairo instance for hit testing to avoid
 			// allocating extra surfaces on graphics that don't need them (such

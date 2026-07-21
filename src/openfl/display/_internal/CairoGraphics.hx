@@ -475,8 +475,8 @@ class CairoGraphics
 			#end
 			if (hasScale9Grid)
 			{
-				x *= graphics.__owner.scaleX;
-				y *= graphics.__owner.scaleY;
+				x = toScale9Position(x, scale9Grid.x, scale9Grid.width, bounds.width, graphics.__owner.scaleX);
+				y = toScale9Position(y, scale9Grid.y, scale9Grid.height, bounds.height, graphics.__owner.scaleY);
 			}
 
 			x -= bounds.x;

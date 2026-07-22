@@ -889,8 +889,9 @@ class CairoGraphics
 
 		bounds = graphics.__bounds;
 
-		var offsetX = bounds.x;
-		var offsetY = bounds.y;
+		var renderBounds = graphics.__softwareRenderBounds != null ? graphics.__softwareRenderBounds : bounds;
+		var offsetX = renderBounds.x;
+		var offsetY = renderBounds.y;
 
 		var positionX = 0.0;
 		var positionY = 0.0;
@@ -1849,7 +1850,7 @@ class CairoGraphics
 
 			if (!stroke && hasFill)
 			{
-				cairo.translate(-bounds.x, -bounds.y);
+				cairo.translate(-offsetX, -offsetY);
 
 				var inverseTranslateX = 0.0;
 				var inverseTranslateY = 0.0;
@@ -1915,7 +1916,7 @@ class CairoGraphics
 					cairo.scale(inverseScaleX, inverseScaleY);
 				}
 
-				cairo.translate(bounds.x, bounds.y);
+				cairo.translate(offsetX, offsetY);
 				cairo.closePath();
 			}
 		}
@@ -1950,7 +1951,7 @@ class CairoGraphics
 	}
 	#end
 
-	public static function render(graphics:Graphics, renderer:CairoRenderer, allowRenderSizeReuse:Bool = false):Void
+	public static function render(graphics:Graphics, renderer:CairoRenderer, allowRenderSizeReuse:Bool = false, renderBounds:Rectangle = null):Void
 	{
 		#if lime_cairo
 		CairoGraphics.graphics = graphics;
@@ -1963,7 +1964,8 @@ class CairoGraphics
 		var pixelRatio = renderer.__pixelRatio;
 		#end
 
-		graphics.__update(renderer.__worldTransform, pixelRatio, allowRenderSizeReuse);
+		graphics.__setSoftwareRenderBounds(renderBounds);
+		graphics.__update(renderer.__worldTransform, pixelRatio, allowRenderSizeReuse, renderBounds);
 
 		var width = graphics.__renderWidth;
 		var height = graphics.__renderHeight;

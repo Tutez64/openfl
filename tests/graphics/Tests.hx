@@ -7,7 +7,9 @@ class Tests
 	{
 		var runner = new Runner();
 		runner.addCase(new CapsStyleTest());
+		#if !flash
 		runner.addCase(new Context3DGraphicsTest());
+		#end
 		runner.addCase(new GradientTypeTest());
 		runner.addCase(new GraphicsBitmapFillTest());
 		runner.addCase(new GraphicsEndFillTest());
@@ -16,7 +18,9 @@ class Tests
 		runner.addCase(new GraphicsPathTest());
 		runner.addCase(new GraphicsPathWindingTest());
 		runner.addCase(new GraphicsSolidFillTest());
+		#if !flash
 		runner.addCase(new GraphicsSoftwareRenderBoundsTest());
+		#end
 		runner.addCase(new GraphicsStrokeTest());
 		runner.addCase(new GraphicsTest());
 		runner.addCase(new InterpolationMethodTest());

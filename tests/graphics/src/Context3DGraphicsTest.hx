@@ -30,7 +30,7 @@ class Context3DGraphicsTest extends Test
 		Assert.isTrue(Context3DGraphics.isCompatible(shape.graphics));
 	}
 
-	public function testOverlappingDrawRectsAreIncompatible():Void
+	public function testOverlappingDrawRectsAreCompatible():Void
 	{
 		var shape = new Shape();
 		shape.graphics.beginFill(0xFF0000);
@@ -38,10 +38,10 @@ class Context3DGraphicsTest extends Test
 		shape.graphics.drawRect(5, 5, 10, 10);
 		shape.graphics.endFill();
 
-		Assert.isFalse(Context3DGraphics.isCompatible(shape.graphics));
+		Assert.isTrue(Context3DGraphics.isCompatible(shape.graphics));
 	}
 
-	public function testNestedDrawRectsAreIncompatible():Void
+	public function testNestedDrawRectsAreCompatible():Void
 	{
 		var shape = new Shape();
 		shape.graphics.beginFill(0xFF0000);
@@ -49,7 +49,7 @@ class Context3DGraphicsTest extends Test
 		shape.graphics.drawRect(5, 5, 5, 5);
 		shape.graphics.endFill();
 
-		Assert.isFalse(Context3DGraphics.isCompatible(shape.graphics));
+		Assert.isTrue(Context3DGraphics.isCompatible(shape.graphics));
 	}
 
 	public function testNegativeSizeDrawRectsUseNormalizedBounds():Void

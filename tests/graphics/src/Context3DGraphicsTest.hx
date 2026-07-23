@@ -6,8 +6,31 @@ import utest.Assert;
 import utest.Test;
 
 @:access(openfl.display._internal.Context3DGraphics)
+@:access(openfl.display.Graphics)
 class Context3DGraphicsTest extends Test
 {
+	public function testOrdinaryHardwareGraphicsDoNotRequireRectangleBatchPreparation():Void
+	{
+		var shape = new Shape();
+		shape.graphics.beginFill(0xFF0000);
+		shape.graphics.drawCircle(0, 0, 10);
+		shape.graphics.endFill();
+
+		Assert.isTrue(Context3DGraphics.isCompatible(shape.graphics));
+		Assert.isFalse(shape.graphics.__rectangleBatchesRequired);
+	}
+
+	public function testSingleDrawRectDoesNotRequireRectangleBatchPreparation():Void
+	{
+		var shape = new Shape();
+		shape.graphics.beginFill(0xFF0000);
+		shape.graphics.drawRect(0, 0, 10, 10);
+		shape.graphics.endFill();
+
+		Assert.isTrue(Context3DGraphics.isCompatible(shape.graphics));
+		Assert.isFalse(shape.graphics.__rectangleBatchesRequired);
+	}
+
 	public function testDisjointDrawRectsAreCompatible():Void
 	{
 		var shape = new Shape();
@@ -17,6 +40,7 @@ class Context3DGraphicsTest extends Test
 		shape.graphics.endFill();
 
 		Assert.isTrue(Context3DGraphics.isCompatible(shape.graphics));
+		Assert.isTrue(shape.graphics.__rectangleBatchesRequired);
 	}
 
 	public function testTouchingDrawRectsAreCompatible():Void
@@ -28,6 +52,26 @@ class Context3DGraphicsTest extends Test
 		shape.graphics.endFill();
 
 		Assert.isTrue(Context3DGraphics.isCompatible(shape.graphics));
+	}
+
+	public function testRectangleBatchRequirementIsClearedWhenCommandsChange():Void
+	{
+		var shape = new Shape();
+		shape.graphics.beginFill(0xFF0000);
+		shape.graphics.drawRect(0, 0, 10, 10);
+		shape.graphics.drawRect(20, 0, 10, 10);
+		shape.graphics.endFill();
+
+		Assert.isTrue(Context3DGraphics.isCompatible(shape.graphics));
+		Assert.isTrue(shape.graphics.__rectangleBatchesRequired);
+
+		shape.graphics.clear();
+		shape.graphics.beginFill(0xFF0000);
+		shape.graphics.drawCircle(0, 0, 10);
+		shape.graphics.endFill();
+
+		Assert.isTrue(Context3DGraphics.isCompatible(shape.graphics));
+		Assert.isFalse(shape.graphics.__rectangleBatchesRequired);
 	}
 
 	public function testOverlappingDrawRectsAreCompatible():Void

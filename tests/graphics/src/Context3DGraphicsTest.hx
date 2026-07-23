@@ -2,6 +2,7 @@ package;
 
 import openfl.display.Shape;
 import openfl.display._internal.Context3DGraphics;
+import openfl.Vector;
 import utest.Assert;
 import utest.Test;
 
@@ -13,7 +14,7 @@ class Context3DGraphicsTest extends Test
 	{
 		var shape = new Shape();
 		shape.graphics.beginFill(0xFF0000);
-		shape.graphics.drawCircle(0, 0, 10);
+		shape.graphics.drawTriangles(Vector.ofArray([0.0, 0.0, 10.0, 0.0, 0.0, 10.0]));
 		shape.graphics.endFill();
 
 		Assert.isTrue(Context3DGraphics.isCompatible(shape.graphics));
@@ -67,7 +68,7 @@ class Context3DGraphicsTest extends Test
 
 		shape.graphics.clear();
 		shape.graphics.beginFill(0xFF0000);
-		shape.graphics.drawCircle(0, 0, 10);
+		shape.graphics.drawTriangles(Vector.ofArray([0.0, 0.0, 10.0, 0.0, 0.0, 10.0]));
 		shape.graphics.endFill();
 
 		Assert.isTrue(Context3DGraphics.isCompatible(shape.graphics));

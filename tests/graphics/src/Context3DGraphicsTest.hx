@@ -2,6 +2,7 @@ package;
 
 import openfl.display.Shape;
 import openfl.display._internal.Context3DGraphics;
+import openfl.display._internal.DrawCommandType;
 import openfl.Vector;
 import utest.Assert;
 import utest.Test;
@@ -19,10 +20,7 @@ class Context3DGraphicsTest extends Test
 
 		Assert.isTrue(Context3DGraphics.isCompatible(shape.graphics));
 		Assert.isFalse(shape.graphics.__rectangleBatchesRequired);
-		Assert.isNull(shape.graphics.__rectangleBatchStarts);
-		Assert.isNull(shape.graphics.__rectangleBatchEnds);
-		Assert.isNull(shape.graphics.__rectangleBatchFills);
-		Assert.isNull(shape.graphics.__rectangleBatchRects);
+		Assert.isNull(shape.graphics.__hardwareCommands);
 	}
 
 	public function testSingleDrawRectDoesNotRequireRectangleBatchPreparation():Void
@@ -34,10 +32,7 @@ class Context3DGraphicsTest extends Test
 
 		Assert.isTrue(Context3DGraphics.isCompatible(shape.graphics));
 		Assert.isFalse(shape.graphics.__rectangleBatchesRequired);
-		Assert.isNull(shape.graphics.__rectangleBatchStarts);
-		Assert.isNull(shape.graphics.__rectangleBatchEnds);
-		Assert.isNull(shape.graphics.__rectangleBatchFills);
-		Assert.isNull(shape.graphics.__rectangleBatchRects);
+		Assert.isNull(shape.graphics.__hardwareCommands);
 	}
 
 	public function testDisjointDrawRectsAreCompatible():Void
@@ -50,6 +45,7 @@ class Context3DGraphicsTest extends Test
 
 		Assert.isTrue(Context3DGraphics.isCompatible(shape.graphics));
 		Assert.isTrue(shape.graphics.__rectangleBatchesRequired);
+		Assert.notNull(shape.graphics.__hardwareCommands);
 	}
 
 	public function testTouchingDrawRectsAreCompatible():Void
@@ -61,6 +57,23 @@ class Context3DGraphicsTest extends Test
 		shape.graphics.endFill();
 
 		Assert.isTrue(Context3DGraphics.isCompatible(shape.graphics));
+	}
+
+	public function testPreparedHardwareCommandsPreserveOtherFills():Void
+	{
+		var shape = new Shape();
+		shape.graphics.beginFill(0xFF0000);
+		shape.graphics.drawRect(0, 0, 10, 10);
+		shape.graphics.drawRect(5, 0, 10, 10);
+		shape.graphics.endFill();
+		shape.graphics.beginFill(0x00FF00);
+		shape.graphics.drawCircle(20, 20, 5);
+		shape.graphics.endFill();
+
+		Assert.isTrue(Context3DGraphics.isCompatible(shape.graphics));
+		Assert.notNull(shape.graphics.__hardwareCommands);
+		Assert.isTrue(shape.graphics.__hardwareCommands.types.indexOf(DrawCommandType.DRAW_QUADS) >= 0);
+		Assert.isTrue(shape.graphics.__hardwareCommands.types.indexOf(DrawCommandType.DRAW_CIRCLE) >= 0);
 	}
 
 	public function testRectangleBatchRequirementIsClearedWhenCommandsChange():Void

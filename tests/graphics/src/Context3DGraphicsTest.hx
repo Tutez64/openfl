@@ -19,6 +19,10 @@ class Context3DGraphicsTest extends Test
 
 		Assert.isTrue(Context3DGraphics.isCompatible(shape.graphics));
 		Assert.isFalse(shape.graphics.__rectangleBatchesRequired);
+		Assert.isNull(shape.graphics.__rectangleBatchStarts);
+		Assert.isNull(shape.graphics.__rectangleBatchEnds);
+		Assert.isNull(shape.graphics.__rectangleBatchFills);
+		Assert.isNull(shape.graphics.__rectangleBatchRects);
 	}
 
 	public function testSingleDrawRectDoesNotRequireRectangleBatchPreparation():Void
@@ -30,6 +34,10 @@ class Context3DGraphicsTest extends Test
 
 		Assert.isTrue(Context3DGraphics.isCompatible(shape.graphics));
 		Assert.isFalse(shape.graphics.__rectangleBatchesRequired);
+		Assert.isNull(shape.graphics.__rectangleBatchStarts);
+		Assert.isNull(shape.graphics.__rectangleBatchEnds);
+		Assert.isNull(shape.graphics.__rectangleBatchFills);
+		Assert.isNull(shape.graphics.__rectangleBatchRects);
 	}
 
 	public function testDisjointDrawRectsAreCompatible():Void

@@ -219,7 +219,7 @@ class Context3DDisplayObjectContainer
 			{
 				return __setSingleLeafRejection(rejection, "graphics-with-children", displayObject);
 			}
-			if (displayObject.__graphics.__usedShaderBuffers.length > 0)
+			if (displayObject.__graphics.__usedShaderBuffers != null && displayObject.__graphics.__usedShaderBuffers.length > 0)
 			{
 				return __setSingleLeafRejection(rejection, "graphics-shader-fill", displayObject);
 			}
@@ -284,7 +284,7 @@ class Context3DDisplayObjectContainer
 			{
 				return __setMultiLeafRejection(rejection, "graphics-with-children", displayObject);
 			}
-			if (displayObject.__graphics.__usedShaderBuffers.length > 0)
+			if (displayObject.__graphics.__usedShaderBuffers != null && displayObject.__graphics.__usedShaderBuffers.length > 0)
 			{
 				return __setMultiLeafRejection(rejection, "graphics-shader-fill", displayObject);
 			}

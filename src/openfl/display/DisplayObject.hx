@@ -1146,9 +1146,7 @@ class DisplayObject extends EventDispatcher implements IBitmapDrawable #if (open
 
 		__worldAlpha = 1;
 		__worldBlendMode = NORMAL;
-		__worldTransform = new Matrix();
 		__worldColorTransform = new ColorTransform();
-		__renderTransform = new Matrix();
 		__worldVisible = true;
 
 		name = "instance" + (++__instanceCount);
@@ -1671,7 +1669,7 @@ class DisplayObject extends EventDispatcher implements IBitmapDrawable #if (open
 
 	@:noCompletion private function __getWorldTransform():Matrix
 	{
-		var transformDirty = __transformDirty || __worldTransformInvalid;
+		var transformDirty = __transformDirty || __worldTransformInvalid || __worldTransform == null || __renderTransform == null;
 
 		if (transformDirty)
 		{

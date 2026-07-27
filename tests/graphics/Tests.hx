@@ -9,6 +9,7 @@ class Tests
 		runner.addCase(new CapsStyleTest());
 		#if !flash
 		runner.addCase(new Context3DGraphicsTest());
+        runner.addCase(new DrawCommandBufferTest());
 		#end
 		runner.addCase(new GradientTypeTest());
 		runner.addCase(new GraphicsBitmapFillTest());

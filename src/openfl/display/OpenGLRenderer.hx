@@ -920,15 +920,15 @@ class OpenGLRenderer extends DisplayObjectRenderer
 		}
 	}
 
-	@:noCompletion private function __renderFilterPass(source:BitmapData, shader:Shader, smooth:Bool, clear:Bool = true):Void
+	@:noCompletion private function __renderFilterPass(source:BitmapData, shader:Shader, smooth:Bool, clear:Bool = true, restoreRenderTarget:Bool = true):Void
 	{
 		if (source == null || shader == null) return;
 		if (__defaultRenderTarget == null) return;
 
-		var cacheRTT = __context3D.__state.renderToTexture;
-		var cacheRTTDepthStencil = __context3D.__state.renderToTextureDepthStencil;
-		var cacheRTTAntiAlias = __context3D.__state.renderToTextureAntiAlias;
-		var cacheRTTSurfaceSelector = __context3D.__state.renderToTextureSurfaceSelector;
+		var cacheRTT = restoreRenderTarget ? __context3D.__state.renderToTexture : null;
+		var cacheRTTDepthStencil = restoreRenderTarget ? __context3D.__state.renderToTextureDepthStencil : false;
+		var cacheRTTAntiAlias = restoreRenderTarget ? __context3D.__state.renderToTextureAntiAlias : 0;
+		var cacheRTTSurfaceSelector = restoreRenderTarget ? __context3D.__state.renderToTextureSurfaceSelector : 0;
 
 		__context3D.setRenderToTexture(__defaultRenderTarget.getTexture(__context3D), false);
 
@@ -951,13 +951,16 @@ class OpenGLRenderer extends DisplayObjectRenderer
 		var indexBuffer = source.getIndexBuffer(__context3D);
 		__context3D.drawTriangles(indexBuffer);
 
-		if (cacheRTT != null)
+		if (restoreRenderTarget)
 		{
-			__context3D.setRenderToTexture(cacheRTT, cacheRTTDepthStencil, cacheRTTAntiAlias, cacheRTTSurfaceSelector);
-		}
-		else
-		{
-			__context3D.setRenderToBackBuffer();
+			if (cacheRTT != null)
+			{
+				__context3D.setRenderToTexture(cacheRTT, cacheRTTDepthStencil, cacheRTTAntiAlias, cacheRTTSurfaceSelector);
+			}
+			else
+			{
+				__context3D.setRenderToBackBuffer();
+			}
 		}
 
 		__clearShader();
@@ -1076,7 +1079,10 @@ class OpenGLRenderer extends DisplayObjectRenderer
 
 		if (renderTarget != null)
 		{
-			__resize(renderTarget.width, renderTarget.height);
+			if (__width != renderTarget.width || __height != renderTarget.height || __displayWidth != renderTarget.width || __displayHeight != renderTarget.height)
+			{
+				__resize(renderTarget.width, renderTarget.height);
+			}
 		}
 	}
 

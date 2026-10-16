@@ -1126,7 +1126,7 @@ class Stage extends DisplayObjectContainer #if lime implements IModule #end
 		this.stage = this;
 
 		// Flash Player / AIR default to "" (centered).
-		align = "";
+		align = cast "";
 		allowsFullScreen = true;
 		allowsFullScreenInteractive = true;
 		__quality = StageQuality.HIGH;

@@ -1082,6 +1082,10 @@ class DisplayObject extends EventDispatcher implements IBitmapDrawable #if (open
 				get: untyped #if haxe4 js.Syntax.code #else __js__ #end ("function () { return this.get_rotation (); }"),
 				set: untyped #if haxe4 js.Syntax.code #else __js__ #end ("function (v) { return this.set_rotation (v); }")
 			},
+			"scale9Grid": {
+				get: untyped #if haxe4 js.Syntax.code #else __js__ #end ("function () { return this.get_scale9Grid (); }"),
+				set: untyped #if haxe4 js.Syntax.code #else __js__ #end ("function (v) { return this.set_scale9Grid (v); }")
+			},
 			"scaleX": {
 				get: untyped #if haxe4 js.Syntax.code #else __js__ #end ("function () { return this.get_scaleX (); }"),
 				set: untyped #if haxe4 js.Syntax.code #else __js__ #end ("function (v) { return this.set_scaleX (v); }")
@@ -2231,18 +2235,22 @@ class DisplayObject extends EventDispatcher implements IBitmapDrawable #if (open
 
 	@:noCompletion private function get_mouseX():Float
 	{
-		var mouseX = (stage != null ? stage.__mouseX : Lib.current.stage.__mouseX);
-		var mouseY = (stage != null ? stage.__mouseY : Lib.current.stage.__mouseY);
-
-		return __getRenderTransform().__transformInverseX(mouseX, mouseY);
+		var stage = this.stage != null ? this.stage : Lib.current.stage;
+		if (stage == null)
+		{
+			return 0.0;
+		}
+		return __getRenderTransform().__transformInverseX(stage.__mouseX, stage.__mouseY);
 	}
 
 	@:noCompletion private function get_mouseY():Float
 	{
-		var mouseX = (stage != null ? stage.__mouseX : Lib.current.stage.__mouseX);
-		var mouseY = (stage != null ? stage.__mouseY : Lib.current.stage.__mouseY);
-
-		return __getRenderTransform().__transformInverseY(mouseX, mouseY);
+		var stage = this.stage != null ? this.stage : Lib.current.stage;
+		if (stage == null)
+		{
+			return 0.0;
+		}
+		return __getRenderTransform().__transformInverseY(stage.__mouseX, stage.__mouseY);
 	}
 
 	@:noCompletion private function get_name():String

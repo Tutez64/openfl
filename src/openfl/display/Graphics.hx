@@ -936,8 +936,8 @@ import js.html.CanvasRenderingContext2D;
 			}
 			else
 			{
-				tileTransform.tx = tileRect.x;
-				tileTransform.ty = tileRect.y;
+				tileTransform.tx = rects[ri];
+				tileTransform.ty = rects[ri + 1];
 			}
 
 			tileRect.__transform(tileRect, tileTransform);
@@ -1157,7 +1157,8 @@ import js.html.CanvasRenderingContext2D;
 		__inflateBounds(minX, minY);
 		__inflateBounds(maxX, maxY);
 
-		__commands.drawTriangles(vertices, indices, uvtData, culling);
+		__commands.drawTriangles(vertices != null ? vertices.copy() : null, indices != null ? indices.copy() : null, uvtData != null ? uvtData.copy() : null,
+			culling);
 
 		__dirty = true;
 		__visible = true;
@@ -1943,12 +1944,10 @@ import js.html.CanvasRenderingContext2D;
 
 		var scaleX = pixelRatio, scaleY = pixelRatio;
 
-		#if (openfl_legacy_scale9grid && lime_cairo && !cairo && !openfl_force_hw_graphics && !force_hw_graphics)
-		var calculateScale = __owner.__worldScale9Grid == null;
-		#elseif (openfl_legacy_scale9grid && lime_canvas && !canvas && !openfl_force_hw_graphics && !force_hw_graphics)
-		var calculateScale = __owner.__worldScale9Grid == null;
-		#else
+		#if (openfl_force_hw_graphics || force_hw_graphics)
 		var calculateScale = true;
+		#else
+		var calculateScale = __owner.__worldScale9Grid == null;
 		#end
 		if (calculateScale)
 		{
@@ -1991,6 +1990,15 @@ import js.html.CanvasRenderingContext2D;
 				}
 			}
 		}
+		#if (!openfl_legacy_scale9grid && !openfl_force_hw_graphics && !force_hw_graphics)
+		else // has scale9Grid
+		{
+			// same as __bitmapScaleX and __bitmapScaleY, but they may not have
+			// been updated by CairoGraphics and CanvasGraphics yet.
+			scaleX = Math.abs(__owner.scaleX) * pixelRatio;
+			scaleY = Math.abs(__owner.scaleY) * pixelRatio;
+		}
+		#end
 
 		if (__owner.__worldScale9Grid != null)
 		{

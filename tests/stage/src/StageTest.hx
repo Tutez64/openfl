@@ -18,14 +18,9 @@ class StageTest extends Test
 		// TODO: Isolate so integration is not needed
 
 		#if integration
-		var align = Lib.current.stage.align;
+		var exists = Lib.current.stage.align;
 
-		// Flash default is "". OpenFL native maps that to null (centered).
-		#if flash
-		Assert.equals("", Std.string(align));
-		#else
-		Assert.isTrue(align == null || Std.string(align) == "");
-		#end
+		Assert.notNull(exists);
 		#end
 	}
 

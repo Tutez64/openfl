@@ -14,7 +14,11 @@ import openfl.utils.ByteArray.ByteArrayData;
 import openfl.utils.Endian;
 import openfl.Vector;
 #if (js && html5)
+#if haxe4
 import js.lib.ArrayBuffer;
+#else
+import js.html.ArrayBuffer;
+#end
 import js.html.BinaryType;
 import js.html.CloseEvent;
 import js.html.MessageEvent;
@@ -470,8 +474,8 @@ class WebSocket extends EventDispatcher
 			if (colon > 0) headers.set(StringTools.trim(lines[i].substr(0, colon)).toLowerCase(), StringTools.trim(lines[i].substr(colon + 1)));
 		}
 		var accept = Base64.encode(Sha1.make(Bytes.ofString(__key + GUID)));
-		if (headers.get("sec-websocket-accept") != accept
-			|| (headers.get("upgrade") : String).toLowerCase() != "websocket")
+		var upgrade = headers.get("upgrade");
+		if (headers.get("sec-websocket-accept") != accept || upgrade == null || upgrade.toLowerCase() != "websocket")
 		{
 			__fail("WebSocket handshake failed: invalid upgrade response");
 			return false;

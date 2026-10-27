@@ -199,7 +199,7 @@ class WebSocket extends EventDispatcher
 		socket.onmessage = function(event:MessageEvent)
 		{
 			if (__socket != socket) return;
-			if (Std.isOfType(event.data, String))
+			if (#if (haxe_ver >= 4.2) Std.isOfType #else Std.is #end(event.data, String))
 			{
 				var bytes = new ByteArray();
 				bytes.writeUTFBytes(event.data);
@@ -257,7 +257,7 @@ class WebSocket extends EventDispatcher
 		switch (opcode)
 		{
 			case fmtTEXT:
-				__socket.send(Std.isOfType(data, ByteArrayData) ? (data : ByteArray).toString() : Std.string(data));
+				__socket.send(#if (haxe_ver >= 4.2) Std.isOfType #else Std.is #end(data, ByteArrayData) ? (data : ByteArray).toString() : Std.string(data));
 			case fmtBINARY:
 				var bytes = __payload(data);
 				var buffer:ArrayBuffer = bytes;
@@ -295,7 +295,7 @@ class WebSocket extends EventDispatcher
 
 	@:noCompletion private static function __payload(data:Dynamic):ByteArray
 	{
-		if (Std.isOfType(data, ByteArrayData)) return data;
+		if (#if (haxe_ver >= 4.2) Std.isOfType #else Std.is #end(data, ByteArrayData)) return data;
 		var bytes = new ByteArray();
 		if (data != null) bytes.writeUTFBytes(Std.string(data));
 		return bytes;
@@ -588,9 +588,9 @@ class WebSocket extends EventDispatcher
 
 	@:noCompletion private function __onSocketError(event:Event):Void
 	{
-		var text = Std.isOfType(event, IOErrorEvent) ? (cast event : IOErrorEvent).text : (cast event : SecurityErrorEvent).text;
+		var text = #if (haxe_ver >= 4.2) Std.isOfType #else Std.is #end(event, IOErrorEvent) ? (cast event : IOErrorEvent).text : (cast event : SecurityErrorEvent).text;
 		var socket = __socket;
-		if (__secure && !__handshakeDone && __verifyCertificate && Std.isOfType(socket, SecureSocket)
+		if (__secure && !__handshakeDone && __verifyCertificate && #if (haxe_ver >= 4.2) Std.isOfType #else Std.is #end(socket, SecureSocket)
 			&& (cast socket : SecureSocket).serverCertificateStatus == CertificateStatus.INVALID && __isCertificateError(text))
 		{
 			__cleanup();

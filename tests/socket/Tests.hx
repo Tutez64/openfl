@@ -8,6 +8,7 @@ class Tests
 		var runner = new Runner();
 		runner.addCase(new ServerSocketTest());
 		runner.addCase(new DatagramSocketTest());
+		runner.addCase(new WebSocketTest());
 		Report.create(runner);
 		#if sys
 		var done = false;

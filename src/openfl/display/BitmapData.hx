@@ -16,6 +16,7 @@ import openfl.geom.ColorTransform;
 import openfl.geom.Matrix;
 import openfl.geom.Point;
 import openfl.geom.Rectangle;
+import openfl.text.TextField;
 import openfl.utils._internal.Float32Array;
 import openfl.utils._internal.UInt8Array;
 import openfl.utils._internal.UInt16Array;
@@ -131,6 +132,7 @@ import openfl.display._internal.stats.DrawCallContext;
 @:access(openfl.geom.Matrix)
 @:access(openfl.geom.Point)
 @:access(openfl.geom.Rectangle)
+@:access(openfl.text.TextField)
 @:autoBuild(openfl.utils._internal.AssetsMacro.embedBitmap())
 class BitmapData implements IBitmapDrawable
 {
@@ -925,6 +927,14 @@ class BitmapData implements IBitmapDrawable
 
 		transform.copyFrom(source.__renderTransform);
 		transform.invert();
+
+		if (#if (haxe_ver >= 4.2) Std.isOfType #else Std.is #end (source, TextField))
+		{
+			// the render transform of a text field includes the offset of its text bounds (set by
+			// SWF text), which is part of its content, not of its position
+			var textField:TextField = cast source;
+			transform.translate(textField.__offsetX, textField.__offsetY);
+		}
 
 		if (matrix != null)
 		{

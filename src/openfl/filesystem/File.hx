@@ -95,6 +95,9 @@ import lime.system.BackgroundWorker;
 @:fileXml('tags="haxe,release"')
 @:noDebug
 #end
+#if (cpp && windows)
+@:cppFileCode('extern "C" __declspec(dllimport) unsigned long __stdcall GetFileAttributesW(const wchar_t *);')
+#end
 class File extends FileReference
 {
 	/**
@@ -2079,6 +2082,12 @@ class File extends FileReference
 
 	@:noCompletion private function __winGetHiddenAttr():Bool
 	{
+		#if (cpp && windows)
+		// from the Windows API, as running attrib took tens of milliseconds per file
+		var attributes:Int = untyped __cpp__("(int)GetFileAttributesW({0}.wchar_str())", nativePath);
+		// -1 is INVALID_FILE_ATTRIBUTES, 0x2 FILE_ATTRIBUTE_HIDDEN
+		return attributes != -1 && (attributes & 0x2) != 0;
+		#else
 		// TODO don't use the command line for this.... instead we should add support in Lime to use
 		// the win api.
 		var process:Process = new Process('attrib "$nativePath"');
@@ -2090,6 +2099,7 @@ class File extends FileReference
 		var flag:Bool = s.indexOf(" H ") > -1;
 
 		return flag;
+		#end
 	}
 
 	@:noCompletion private function __updateFileStats(?path:String):Void

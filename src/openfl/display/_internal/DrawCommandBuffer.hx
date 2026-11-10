@@ -252,6 +252,29 @@ class DrawCommandBuffer
 		copyOnWrite = COW_ALL;
 	}
 
+	/**
+		Empties the buffer like `clear()`, but keeps the storage it owns, for
+		a buffer that is filled and emptied again and again. Storage shared
+		with another buffer is left to it.
+	**/
+	public function reset():Void
+	{
+		types = (copyOnWrite & COW_TYPES) != 0 ? empty.types : emptied(types);
+
+		b = (copyOnWrite & COW_B) != 0 ? empty.b : emptied(b);
+		i = (copyOnWrite & COW_I) != 0 ? empty.i : emptied(i);
+		f = (copyOnWrite & COW_F) != 0 ? empty.f : emptied(f);
+		o = (copyOnWrite & COW_O) != 0 ? empty.o : emptied(o);
+		ff = (copyOnWrite & COW_FF) != 0 ? empty.ff : emptied(ff);
+		ii = (copyOnWrite & COW_II) != 0 ? empty.ii : emptied(ii);
+	}
+
+	private static inline function emptied<T>(storage:Array<T>):Array<T>
+	{
+		storage.resize(0);
+		return storage;
+	}
+
 	public function copy():DrawCommandBuffer
 	{
 		var copy = new DrawCommandBuffer();

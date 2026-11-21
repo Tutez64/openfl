@@ -1652,6 +1652,8 @@ class DisplayObject extends EventDispatcher implements IBitmapDrawable #if (open
 		if (__scrollRect == null)
 		{
 			__getBounds(rect, matrix);
+			// what is drawn: a stroke reaches past the bounds Flash reports
+			if (__graphics != null) __graphics.__getRenderBounds(rect, matrix);
 		}
 		else
 		{
